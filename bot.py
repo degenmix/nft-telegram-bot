@@ -1,4 +1,3 @@
-=== bot.py ===
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
@@ -17,19 +16,19 @@ FREE_CREDITS = 5
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-
+    
     if user_id not in user_credits:
         user_credits[user_id] = FREE_CREDITS
         logger.info(f"New user: {user_id}")
-
+    
     credits = user_credits[user_id]
-
+    
     keyboard = [
         [InlineKeyboardButton("🎨 Generate Image", callback_data='gen')],
         [InlineKeyboardButton("🎯 NFT Styles", callback_data='styles')],
         [InlineKeyboardButton("💎 My Credits", callback_data='cred')]
     ]
-
+    
     await update.message.reply_text(
         f"🎨 *AI NFT Image Generator*\n\n"
         f"⚡ L40 GPU Powered\n"
@@ -50,7 +49,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
+    
     if query.data == 'gen':
         await query.message.reply_text(
             "🎨 Send your prompt:\n`a futuristic robot`\n\nOr:\n`/pfp cool character`",
@@ -76,7 +75,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
-
+    
     style = ""
     if text.startswith('/'):
         parts = text.split(' ', 1)
@@ -88,18 +87,18 @@ async def generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
     else:
         prompt = text
-
+    
     if user_credits.get(user_id, 0) < 1:
         await update.message.reply_text("❌ No credits! Use /start")
         return
-
+    
     prompts = [p.strip() for p in prompt.split('\n') if p.strip()]
     if user_credits.get(user_id, 0) < len(prompts):
         await update.message.reply_text(f"Need {len(prompts)} credits, have {user_credits[user_id]}")
         return
-
+    
     status = await update.message.reply_text(f"🎨 Generating {len(prompts)} image(s)...")
-
+    
     success = 0
     try:
         for i, p in enumerate(prompts):
@@ -112,7 +111,7 @@ async def generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     success += 1
             except:
                 pass
-
+        
         user_credits[user_id] -= success
         await update.message.reply_text(f"✅ Done! 💎 Left: {user_credits[user_id]}")
         await status.delete()
@@ -129,20 +128,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-=== requirements.txt ===
-python-telegram-bot==21.0
-requests==2.31.0
-
-=== README.md ===
-# Jenerator Bot - AI NFT Image Generator
-
-Telegram: @Jenerator_bot
-GPU: L40
-
-## Deploy on Render
-1. Fork repo
-2. Create Background Worker
-3. Add BOT_TOKEN env var
-4. Deploy!
-
