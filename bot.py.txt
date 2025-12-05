@@ -1,0 +1,3 @@
+# Show the file contents to copy:
+echo "=== bot.py ==="
+cat ~/nft-telegram-bot/bot.py
