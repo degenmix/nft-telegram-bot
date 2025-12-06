@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 user_credits = {}
-FREE_CREDITS = 5
+FREE_CREDITS = 50
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -159,4 +159,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
