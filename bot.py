@@ -108,7 +108,8 @@ async def generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             r = requests.post(
                 f"{GPU_API}/generate",
                 json={"prompt": p, "style": style},
-                timeout=30
+                timeout=60
+            
             )
             
             logger.info(f"Response status: {r.status_code}, size: {len(r.content)} bytes")
@@ -158,3 +159,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
