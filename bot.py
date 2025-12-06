@@ -150,14 +150,40 @@ async def generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 def main():
+    if not BOT_TOKEN:
+        print("❌ ERROR: BOT_TOKEN not set!")
+        return
+    
     app = Application.builder().token(BOT_TOKEN).build()
+    
+    # Add all handlers
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("buy", buy_credits))
+    app.add_handler(CommandHandler("myid", myid))
+    app.add_handler(CommandHandler("addcredits", add_credits_cmd))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, generate_handler))
+    
     logger.info("✅ @Jenerator_bot starting...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    logger.info(f"🔗 GPU API: {GPU_API}")
+    
+    # Use webhooks to avoid conflicts
+    import os
+    PORT = int(os.environ.get('PORT', 8080))
+    
+    # Drop any pending updates to clear conflicts
+    app.bot.delete_webhook(drop_pending_updates=True)
+    
+    # Start polling with conflict resolution
+    app.run_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True,  # Clear old updates
+        close_loop=False
+    )
 
 if __name__ == '__main__':
     main()
+
+
 
 
