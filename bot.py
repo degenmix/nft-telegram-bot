@@ -158,7 +158,7 @@ def main():
     
     # Add all handlers
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("buy", buy_credits))
+    #app.add_handler(CommandHandler("buy", buy_credits))
     app.add_handler(CommandHandler("myid", myid))
     app.add_handler(CommandHandler("addcredits", add_credits_cmd))
     app.add_handler(CallbackQueryHandler(button_handler))
@@ -183,6 +183,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
