@@ -2,9 +2,11 @@ import os
 import io
 import logging
 import requests
-from telegram import LabeledPrice
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from telegram import LabeledPrice, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, CallbackQueryHandler, 
+    PreCheckoutQueryHandler, filters, ContextTypes
+)
 
 # Setup logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -13,8 +15,9 @@ logger = logging.getLogger(__name__)
 # Config
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 GPU_API = os.environ.get('GPU_API', 'http://106.54.57.182:8000')
-FREE_CREDITS = 50  # Set to 50 as you wanted
-ADMIN_ID = 7226303447  # Replace with your Telegram user ID
+FREE_CREDITS = 50
+ADMIN_ID = 7226303447
+
 # In-memory storage
 user_credits = {}
 
@@ -34,14 +37,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Welcome message"""
     user_id = update.message.from_user.id
     
-    # Give free credits to new users
     if user_id not in user_credits:
         user_credits[user_id] = FREE_CREDITS
         logger.info(f"New user {user_id} - gave {FREE_CREDITS} credits")
     
     credits = user_credits.get(user_id, 0)
     
-    # Check API status
     try:
         r = requests.get(f"{GPU_API}/health", timeout=3)
         status_emoji = "🟢" if r.status_code == 200 else "🟡"
@@ -56,17 +57,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     
     await update.message.reply_text(
-        f"🎨 *AI NFT Image Generator*\n\n"
+        f"🎨 *AI Image Generator*\n\n"
         f"{status_emoji} GPU Status\n"
         f"⚡ L40 GPU Powered\n"
         f"💎 *Your Credits:* {credits}\n\n"
         f"*Quick Start:*\n"
-        f"Just type any prompt:\n"
-        f"`a cool robot warrior`\n\n"
-        f"Or use style commands:\n"
-        f"`/pfp cute character`\n"
+        f"Just type: `a cool robot`\n\n"
+        f"Or use styles:\n"
         f"`/anime magical girl`\n"
         f"`/cyberpunk city`",
+        parse_mode='Markdown',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show credit packages"""
+    keyboard = [
+        [InlineKeyboardButton("💎 100 Credits - 50 Stars (~₹99)", callback_data="buy_100")],
+        [InlineKeyboardButton("🔥 500 Credits - 200 Stars (~₹399) ⭐BEST", callback_data="buy_500")],
+        [InlineKeyboardButton("⚡ 1000 Credits - 350 Stars (~₹699)", callback_data="buy_1000")]
+    ]
+    await update.message.reply_text(
+        "💰 *Buy Credits with Telegram Stars*\n\n"
+        "💎 100 credits = 50 Stars (~₹99)\n"
+        "🔥 500 credits = 200 Stars (~₹399) ⭐BEST VALUE\n"
+        "⚡ 1000 credits = 350 Stars (~₹699)\n\n"
+        "Choose a package below:",
         parse_mode='Markdown',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -83,102 +99,93 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(
             "🎨 *Generate Image*\n\n"
             "Send your prompt:\n"
-            "`a futuristic robot`\n\n"
-            "Or use style:\n"
-            "`/pfp cute cat`\n"
-            "`/anime hero`",
+            "`a futuristic robot`",
             parse_mode='Markdown'
         )
     
     elif query.data == 'styles':
-        styles_text = "*🎨 Available NFT Styles:*\n\n"
-        for name, desc in STYLES.items():
-            styles_text += f"/{name} - {desc.split(',')[0]}\n"
-        styles_text += "\n*Usage:* `/pfp your prompt here`"
-        
+        styles_text = "*🎨 Available Styles:*\n\n"
+        for name in STYLES.keys():
+            styles_text += f"/{name}\n"
+        styles_text += "\n*Usage:* `/anime your prompt`"
         await query.message.reply_text(styles_text, parse_mode='Markdown')
     
     elif query.data == 'cred':
         await query.message.reply_text(
-            f"💎 *Your Credits*\n\n"
-            f"Balance: {credits}\n\n"
-            f"Need more? /buy",
+            f"💎 *Your Credits: {credits}*\n\n"
+            f"Need more? Use /buy",
             parse_mode='Markdown'
         )
     
     elif query.data == 'buy':
-        await query.message.reply_text(
-            "💰 *Buy More Credits*\n\n"
-            "📦 *Packages:*\n"
-            "💎 10 images = ₹100 (0.5 TON)\n"
-            "⚡ 50 images = ₹400 (2 TON)\n"
-            "🚀 100 images = ₹700 (3.5 TON)\n\n"
-            "🇮🇳 *UPI:* `rahulkhunte@ybl`\n"
-            "🌐 *TON:* `UQAUDbGlEj0mgQe-yu8r7Iree8OEAn4CB7l8t2447N6tteRI`\n\n"
-            "📝 *After payment:*\n"
-            "1. Send payment screenshot\n"
-            "2. Use /myid to get your ID\n"
-            "3. Credits added in 5 mins!\n\n"
-            "Questions? Message @rahul_username",
-            parse_mode='Markdown'
-        )
+        await buy_handler(query, context)
+    
+    # Handle payment buttons
+    elif query.data.startswith('buy_'):
+        packages = {
+            "buy_100": (100, 50, "100 Credits Pack"),
+            "buy_500": (500, 200, "500 Credits ⭐BEST VALUE"),
+            "buy_1000": (1000, 350, "1000 Credits Pack")
+        }
+        
+        if query.data in packages:
+            credits_amount, stars, title = packages[query.data]
+            
+            await context.bot.send_invoice(
+                chat_id=query.from_user.id,
+                title=title,
+                description=f"Get {credits_amount} credits to generate AI images!",
+                payload=f"credits_{credits_amount}",
+                currency="XTR",
+                prices=[LabeledPrice(label=f"{credits_amount} Credits", amount=stars)]
+            )
+
+async def precheckout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Approve payment"""
+    query = update.pre_checkout_query
+    await query.answer(ok=True)
+
+async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Add credits after successful payment"""
+    user_id = update.message.from_user.id
+    payload = update.message.successful_payment.invoice_payload
+    
+    # Extract credits from payload
+    credits_amount = int(payload.split('_')[1])
+    
+    # Add credits
+    if user_id not in user_credits:
+        user_credits[user_id] = 0
+    user_credits[user_id] += credits_amount
+    
+    await update.message.reply_text(
+        f"✅ *Payment Successful!*\n\n"
+        f"💎 Added {credits_amount} credits!\n"
+        f"💰 New balance: {user_credits[user_id]}\n\n"
+        f"Start generating with any prompt! 🎨",
+        parse_mode='Markdown'
+    )
+    
+    logger.info(f"User {user_id} bought {credits_amount} credits")
 
 async def myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show user their ID"""
+    """Show user ID"""
     user_id = update.message.from_user.id
     credits = user_credits.get(user_id, 0)
     
     await update.message.reply_text(
         f"👤 *Your Details*\n\n"
         f"User ID: `{user_id}`\n"
-        f"💎 Credits: {credits}\n\n"
-        f"Send this ID after payment!",
+        f"💎 Credits: {credits}",
         parse_mode='Markdown'
     )
-
-async def add_credits_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin command to add credits"""
-    if update.message.from_user.id != ADMIN_ID:
-        return
-    
-    try:
-        user_id = int(context.args[0])
-        amount = int(context.args[1])
-        
-        if user_id not in user_credits:
-            user_credits[user_id] = 0
-        
-        user_credits[user_id] += amount
-        
-        await update.message.reply_text(
-            f"✅ Added {amount} credits to user {user_id}\n"
-            f"New balance: {user_credits[user_id]}"
-        )
-        
-        # Notify user
-        try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=f"💎 *Payment Received!*\n\n"
-                     f"{amount} credits added\n"
-                     f"Balance: {user_credits[user_id]}\n\n"
-                     f"Thanks for your purchase! 🎉",
-                parse_mode='Markdown'
-            )
-        except:
-            pass
-        
-        logger.info(f"Admin added {amount} credits to user {user_id}")
-        
-    except Exception as e:
-        await update.message.reply_text(f"Error: {e}\n\nUsage: /addcredits user_id amount")
 
 async def generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle image generation"""
     user_id = update.message.from_user.id
     text = update.message.text
     
-    # Check if it's a style command
+    # Check for style command
     style = 'default'
     prompt = text
     
@@ -190,18 +197,19 @@ async def generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Check credits
     if user_credits.get(user_id, 0) < 1:
+        keyboard = [[InlineKeyboardButton("💰 Buy Credits", callback_data='buy')]]
         await update.message.reply_text(
             "❌ *No credits left!*\n\n"
-            "Buy more: /buy",
-            parse_mode='Markdown'
+            "Buy more to continue:",
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
     
-    # Generate image
     status = await update.message.reply_text("🎨 Generating...")
     
     try:
-        # Prepare prompt with style
+        # Add style to prompt
         if style in STYLES:
             full_prompt = f"{prompt}, {STYLES[style]}"
         else:
@@ -223,7 +231,7 @@ async def generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Send image
             photo = io.BytesIO(r.content)
-            photo.name = 'nft.png'
+            photo.name = 'image.png'
             
             await update.message.reply_photo(
                 photo=photo,
@@ -231,17 +239,14 @@ async def generate_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             
             await status.delete()
-            logger.info(f"Success! User {user_id} has {remaining} credits left")
+            logger.info(f"Success! User {user_id} has {remaining} credits")
         else:
-            await status.edit_text("❌ Generation failed. Try again!")
-            logger.error(f"API error: {r.status_code}")
+            await status.edit_text("❌ Failed. Try again!")
     
     except requests.exceptions.Timeout:
-        await status.edit_text("⏱️ Timeout! GPU is busy. Try again in 1 min.")
-        logger.error("Request timeout")
-    
+        await status.edit_text("⏱️ Timeout! Try again.")
     except Exception as e:
-        await status.edit_text("❌ Error occurred. Try again!")
+        await status.edit_text("❌ Error occurred!")
         logger.error(f"Error: {e}")
 
 def main():
@@ -251,87 +256,19 @@ def main():
     
     app = Application.builder().token(BOT_TOKEN).build()
     
-    # Add handlers
+    # Add ALL handlers here
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("buy", buy_handler))
     app.add_handler(CommandHandler("myid", myid))
-    app.add_handler(CommandHandler("addcredits", add_credits_admin))
     app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, generate_handler))
-# Add these to your application
-application.add_handler(CommandHandler("buy", buy_handler))
-application.add_handler(CallbackQueryHandler(payment_callback, pattern="^buy_"))
-application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
-application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
     
     logger.info("✅ @Jenerator_bot starting...")
     logger.info(f"🔗 GPU API: {GPU_API}")
     
-    # Clear pending updates and start
     app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
-async def buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show credit packages"""
-    keyboard = [
-        [InlineKeyboardButton("💎 100 Credits - 50 Stars", callback_data="buy_100")],
-        [InlineKeyboardButton("🔥 500 Credits - 200 Stars (BEST VALUE)", callback_data="buy_500")],
-        [InlineKeyboardButton("⭐ 1000 Credits - 350 Stars", callback_data="buy_1000")]
-    ]
-    await update.message.reply_text(
-        "💰 Buy More Credits:\n\n"
-        "100 credits = 50 Stars (~₹99)\n"
-        "500 credits = 200 Stars (~₹399) ⭐BEST VALUE\n"
-        "1000 credits = 350 Stars (~₹699)\n\n"
-        "Choose a package:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-async def payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle payment button clicks"""
-    query = update.callback_query
-    await query.answer()
-    
-    packages = {
-        "buy_100": (100, 50, "100 Credits Pack"),
-        "buy_500": (500, 200, "500 Credits Pack ⭐BEST VALUE"),
-        "buy_1000": (1000, 350, "1000 Credits Pack")
-    }
-    
-    if query.data in packages:
-        credits, stars, title = packages[query.data]
-        
-        # Send invoice
-        await context.bot.send_invoice(
-            chat_id=query.from_user.id,
-            title=title,
-            description=f"Get {credits} credits to generate amazing AI images!",
-            payload=f"credits_{credits}",
-            currency="XTR",  # Telegram Stars
-            prices=[LabeledPrice(label=f"{credits} Credits", amount=stars)]
-        )
-
-async def precheckout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Approve payment"""
-    query = update.pre_checkout_query
-    await query.answer(ok=True)
-
-async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Add credits after successful payment"""
-    user_id = update.message.from_user.id
-    payload = update.message.successful_payment.invoice_payload
-    
-    # Extract credits from payload (e.g., "credits_100" -> 100)
-    credits = int(payload.split('_')[1])
-    
-    # Add credits to user (you'll need to implement credit tracking)
-    # For now, just confirm:
-    await update.message.reply_text(
-        f"✅ Payment successful!\n\n"
-        f"💎 Added {credits} credits to your account!\n"
-        f"Use /generate to create images!"
-    )
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
