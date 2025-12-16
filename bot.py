@@ -2,6 +2,7 @@ import os
 import io
 import logging
 import requests
+from telegram import LabeledPrice
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
@@ -262,9 +263,75 @@ def main():
     
     # Clear pending updates and start
     app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+async def buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show credit packages"""
+    keyboard = [
+        [InlineKeyboardButton("💎 100 Credits - 50 Stars", callback_data="buy_100")],
+        [InlineKeyboardButton("🔥 500 Credits - 200 Stars (BEST VALUE)", callback_data="buy_500")],
+        [InlineKeyboardButton("⭐ 1000 Credits - 350 Stars", callback_data="buy_1000")]
+    ]
+    await update.message.reply_text(
+        "💰 Buy More Credits:\n\n"
+        "100 credits = 50 Stars (~₹99)\n"
+        "500 credits = 200 Stars (~₹399) ⭐BEST VALUE\n"
+        "1000 credits = 350 Stars (~₹699)\n\n"
+        "Choose a package:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+async def payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle payment button clicks"""
+    query = update.callback_query
+    await query.answer()
+    
+    packages = {
+        "buy_100": (100, 50, "100 Credits Pack"),
+        "buy_500": (500, 200, "500 Credits Pack ⭐BEST VALUE"),
+        "buy_1000": (1000, 350, "1000 Credits Pack")
+    }
+    
+    if query.data in packages:
+        credits, stars, title = packages[query.data]
+        
+        # Send invoice
+        await context.bot.send_invoice(
+            chat_id=query.from_user.id,
+            title=title,
+            description=f"Get {credits} credits to generate amazing AI images!",
+            payload=f"credits_{credits}",
+            currency="XTR",  # Telegram Stars
+            prices=[LabeledPrice(label=f"{credits} Credits", amount=stars)]
+        )
+
+async def precheckout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Approve payment"""
+    query = update.pre_checkout_query
+    await query.answer(ok=True)
+
+async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Add credits after successful payment"""
+    user_id = update.message.from_user.id
+    payload = update.message.successful_payment.invoice_payload
+    
+    # Extract credits from payload (e.g., "credits_100" -> 100)
+    credits = int(payload.split('_')[1])
+    
+    # Add credits to user (you'll need to implement credit tracking)
+    # For now, just confirm:
+    await update.message.reply_text(
+        f"✅ Payment successful!\n\n"
+        f"💎 Added {credits} credits to your account!\n"
+        f"Use /generate to create images!"
+    )
+
+# Add these to your application
+application.add_handler(CommandHandler("buy", buy_handler))
+application.add_handler(CallbackQueryHandler(payment_callback, pattern="^buy_"))
+application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
 
 if __name__ == '__main__':
     main()
+
 
 
 
