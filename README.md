@@ -62,6 +62,7 @@ This bot demonstrates:
 └──────┬──────┘
 │ (Bot API)
 ▼
+
 ┌─────────────────┐
 │ Python Bot │
 │ - Command │
@@ -71,6 +72,7 @@ This bot demonstrates:
 └────────┬────────┘
 │
 ▼
+
 ┌─────────────────┐
 │ ComfyUI API │
 │ - Workflow │
@@ -78,6 +80,7 @@ This bot demonstrates:
 └────────┬────────┘
 │
 ▼
+
 ┌─────────────────┐
 │ L40 GPU │
 │ - SDXL Turbo │
