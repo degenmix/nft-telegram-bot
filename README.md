@@ -144,7 +144,7 @@ docker run -d \
 
 ```
   
-📊 Performance Metrics
+## 📊 Performance Metrics
 Metric	Value	Notes
 Generation time	3.8s avg	L40 GPU, SDXL Turbo
 Concurrent users	5-10	Queue-based system
@@ -162,8 +162,10 @@ Rate limiting implemented
 
 Input sanitization
 
-🧩 Project Structure
-text
+---
+
+## 🧩 Project Structure
+```bash
 ai-image-bot/
 ├── bot.py                # Main bot logic
 ├── comfyui_client.py     # ComfyUI API wrapper
@@ -190,7 +192,10 @@ Planned features:
 
  Multi-language support
 
-🤝 Use Cases
+```
+---
+
+## 🤝 Use Cases
 Content creation - Marketing visuals, social media
 
 Prototyping - Concept art, design mockups
@@ -201,7 +206,9 @@ Research - Studying generative AI capabilities
 
 Commercial - SaaS product foundation
 
-💼 About the Developer
+---
+
+## 💼 About the Developer
 Rahul Khunte - AI/ML Engineer specializing in GPU-accelerated systems
 
 This project showcases:
@@ -234,7 +241,7 @@ Connect:
 
 📧 Email: rahulk.rk903@gmail.com
 
-💼 GitHub: @rahulkhunte
+💼 GitHub: [@rahulkhunte](https://github.com/rahulkhunte)
 
 💵 Freelance rate: $20-30/hr
 
